@@ -1,0 +1,6 @@
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usart.h:1862:26:LL_USART_IsActiveFlag_TXE	1
+../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_ll_usart.h:2474:22:LL_USART_TransmitData8	1
+/mnt/7A10A20610A1CA09/Personal_WorkSpace/STM_1.18_WorkSpace/myLib/UART/UART_programs.c:6:6:UART_TransmitInt	6
+/mnt/7A10A20610A1CA09/Personal_WorkSpace/STM_1.18_WorkSpace/myLib/UART/UART_programs.c:38:6:UART_TransmitNum	1
+/mnt/7A10A20610A1CA09/Personal_WorkSpace/STM_1.18_WorkSpace/myLib/UART/UART_programs.c:48:6:UART_TransmitStr	4
+/mnt/7A10A20610A1CA09/Personal_WorkSpace/STM_1.18_WorkSpace/myLib/UART/UART_programs.c:67:6:UART_TransmitNewLine	3
