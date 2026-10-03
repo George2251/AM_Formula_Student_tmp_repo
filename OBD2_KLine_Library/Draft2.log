@@ -1,0 +1,15 @@
+LTspice 24.0.12 for Windows
+Circuit: * W:\7A10A20610A1CA09\Downloads\Assiut MotorSport\Formulat_Student\Honda CBR 600 RR 2003 ECU Communication\OBD2_KLine_Library\Draft2.asc
+Start Time: Mon Aug 24 00:08:52 2026
+Warning: Multiple definitions of model "2scr375p" Type: BJT
+Warning: Multiple definitions of model "bc857b" Type: BJT
+Warning: Multiple definitions of model "bc847c" Type: BJT
+Warning: Multiple definitions of model "bc847b" Type: BJT
+solver = Normal
+Maximum thread count: 12
+tnom = 27
+temp = 27
+method = modified trap
+Direct Newton iteration for .op point succeeded.
+Total elapsed time: 0.075 seconds.
+
