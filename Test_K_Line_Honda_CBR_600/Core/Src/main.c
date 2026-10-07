@@ -42,7 +42,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t usr_req = '1'; //1: gear status, 2: sensor data
+volatile uint8_t usr_req = 0; //1: gear status, 2: sensor data
+volatile uint32_t timeout_counter = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -66,12 +67,14 @@ static void MX_USART2_UART_Init(void);
 #define HDS_KLINE_STAT_WORKING			2
 #define HDS_KLINE_STAT_WAITING			3
 
+//#define TRANSMIT_DISABLE_RX
+#define TRANSMIT_DUMP_RX_DATA
 
 uint8_t hds_kline_status = 0;
 
 uint16_t hds_timeout_ms = 1;
 
-#define HDS_KLINE_TIMEOUT_MS	500
+#define HDS_KLINE_TIMEOUT_MS	2000
 
 #define HDS_KLINE_COMMUNICATION_UART 	USART1
 
@@ -118,7 +121,9 @@ void HDS_KLine_init()
 {
 	uint8_t hds_msg_counter = 0;
 
+#ifdef TRANSMIT_DISABLE_RX
 	LL_USART_DisableDirectionRx(HDS_KLINE_COMMUNICATION_UART);
+#endif
 	LL_USART_Disable(HDS_KLINE_COMMUNICATION_UART);
 	LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9, LL_GPIO_MODE_OUTPUT);
 
@@ -138,6 +143,10 @@ void HDS_KLine_init()
 		while(!LL_USART_IsActiveFlag_TXE(HDS_KLINE_COMMUNICATION_UART))
 		{}
 		LL_USART_TransmitData8(HDS_KLINE_COMMUNICATION_UART, hds_wake_up_msg[hds_msg_counter]);
+#ifdef TRANSMIT_DUMP_RX_DATA
+		while(!LL_USART_IsActiveFlag_RXNE(HDS_KLINE_COMMUNICATION_UART)){}
+		uint8_t dummy = LL_USART_ReceiveData8(HDS_KLINE_COMMUNICATION_UART);
+#endif
 		hds_msg_counter++;
 	}
 	CLEAR_BIT(hds_kline_status, HDS_KLINE_STAT_SENDING);
@@ -151,6 +160,10 @@ void HDS_KLine_init()
 		while(!LL_USART_IsActiveFlag_TXE(HDS_KLINE_COMMUNICATION_UART))
 		{}
 		LL_USART_TransmitData8(HDS_KLINE_COMMUNICATION_UART, hds_init_msg[hds_msg_counter]);
+#ifdef TRANSMIT_DUMP_RX_DATA
+		while(!LL_USART_IsActiveFlag_RXNE(HDS_KLINE_COMMUNICATION_UART)){}
+		uint8_t dummy = LL_USART_ReceiveData8(HDS_KLINE_COMMUNICATION_UART);
+#endif
 		hds_msg_counter++;
 	}
 	CLEAR_BIT(hds_kline_status, HDS_KLINE_STAT_SENDING);
@@ -161,10 +174,13 @@ void HDS_KLine_init()
 #endif
 
 #ifdef USE_TIMEOUT
-	hds_timeout_ms = HDS_KLINE_TIMEOUT_MS;
+	timeout_counter = HDS_KLINE_TIMEOUT_MS;
 #endif
 
+#ifdef TRANSMIT_DISABLE_RX
 	LL_USART_EnableDirectionRx(HDS_KLINE_COMMUNICATION_UART);
+#endif
+
 
 	SET_BIT(hds_kline_status, HDS_KLINE_STAT_RECIEVING);
 	hds_msg_counter = 0;
@@ -173,17 +189,15 @@ void HDS_KLine_init()
 		while(!LL_USART_IsActiveFlag_RXNE(HDS_KLINE_COMMUNICATION_UART))
 		{
 #ifdef USE_TIMEOUT
-			if(LL_SYSTICK_IsActiveCounterFlag())
+			if(timeout_counter == 0)
 			{
-				if(hds_timeout_ms-- == 0)
-				{
-					return;
-				}
+				return;
 			}
 #endif
 		}
 
 		hds_buffer[hds_msg_counter] = LL_USART_ReceiveData8(HDS_KLINE_COMMUNICATION_UART);
+		LL_USART_TransmitData8(DEBUGING_USART, hds_buffer[hds_msg_counter]);
 		hds_msg_counter++;
 	}
 
@@ -192,6 +206,9 @@ void HDS_KLine_init()
 	&& (hds_buffer[2] == hds_init_response_msg[2])
 	&& (hds_buffer[3] == hds_init_response_msg[3]))
 	{
+		UART_TransmitStr("connected", DEBUGING_USART);
+				  UART_TransmitNewLine(DEBUGING_USART);
+
 		SET_BIT(hds_kline_status, HDS_KLINE_STAT_WORKING);
 	}
 }
@@ -207,7 +224,9 @@ void HDS_KLine_request(uint8_t hds_table_ID, uint8_t hds_msg_checksum)
 	//but can be made to be calculated later)
 	hds_request_msg[4] = hds_msg_checksum;
 
+#ifdef TRANSMIT_DISABLE_RX
 	LL_USART_DisableDirectionRx(HDS_KLINE_COMMUNICATION_UART);
+#endif
 
 	hds_msg_counter = 0;
 	SET_BIT(hds_kline_status, HDS_KLINE_STAT_SENDING);
@@ -216,11 +235,18 @@ void HDS_KLine_request(uint8_t hds_table_ID, uint8_t hds_msg_checksum)
 		while(!LL_USART_IsActiveFlag_TXE(HDS_KLINE_COMMUNICATION_UART))
 		{}
 		LL_USART_TransmitData8(HDS_KLINE_COMMUNICATION_UART, hds_request_msg[hds_msg_counter]);
+#ifdef TRANSMIT_DUMP_RX_DATA
+		while(!LL_USART_IsActiveFlag_RXNE(HDS_KLINE_COMMUNICATION_UART)){}
+		uint8_t dummy = LL_USART_ReceiveData8(HDS_KLINE_COMMUNICATION_UART);
+#endif
 		hds_msg_counter++;
 	}
 	CLEAR_BIT(hds_kline_status, HDS_KLINE_STAT_SENDING);
 
+#ifdef TRANSMIT_DISABLE_RX
 	LL_USART_EnableDirectionRx(HDS_KLINE_COMMUNICATION_UART);
+#endif	LL_USART_ReceiveData8(HDS_KLINE_COMMUNICATION_UART);
+
 
 	SET_BIT(hds_kline_status, HDS_KLINE_STAT_WAITING);
 
@@ -237,7 +263,7 @@ void HDS_KLine_recieve()
 #endif
 
 #ifdef USE_TIMEOUT
-	hds_timeout_ms = HDS_KLINE_TIMEOUT_MS;
+	timeout_counter = HDS_KLINE_TIMEOUT_MS;
 #endif
 
 	SET_BIT(hds_kline_status, HDS_KLINE_STAT_RECIEVING);
@@ -247,14 +273,11 @@ void HDS_KLine_recieve()
 		while(!LL_USART_IsActiveFlag_RXNE(HDS_KLINE_COMMUNICATION_UART))
 		{
 #ifdef USE_TIMEOUT
-			if(LL_SYSTICK_IsActiveCounterFlag())
+			if(timeout_counter == 0)
 			{
-				if(hds_timeout_ms-- == 0)
-				{
-					CLEAR_BIT(hds_kline_status, HDS_KLINE_STAT_WORKING);
-					return;
-				}
+				return;
 			}
+
 #endif
 		}
 
@@ -264,12 +287,28 @@ void HDS_KLine_recieve()
 		if(hds_msg_counter == 2)
 		{
 			hds_msg_length = hds_buffer[1];
+			if(hds_msg_length > HDS_BUFFER_MAX_SIZE)
+			{
+				hds_msg_length = HDS_BUFFER_MAX_SIZE;
+			}
 		}
 	}
 
 	CLEAR_BIT(hds_kline_status, HDS_KLINE_STAT_WAITING);
 
 	//printing logic to the debugging uart here
+
+	UART_TransmitStr("HDS: message length: ", DEBUGING_USART);
+	UART_TransmitNum(hds_msg_length, DEBUGING_USART);
+	UART_TransmitNewLine(DEBUGING_USART);
+	for(int i = 0; i < hds_msg_length; i++)
+	{
+		UART_TransmitStr("HDS: byte no: ", DEBUGING_USART);
+		UART_TransmitNum(i, DEBUGING_USART);
+		UART_TransmitStr(", value: ", DEBUGING_USART);
+		UART_TransmitNum(hds_buffer[i], DEBUGING_USART);
+		UART_TransmitNewLine(DEBUGING_USART);
+	}
 
 }
 
@@ -336,22 +375,33 @@ int main(void)
   {
 	  if(!READ_BIT(hds_kline_status, HDS_KLINE_STAT_WORKING))
 	  {
+		  UART_TransmitNewLine(DEBUGING_USART);
+		  UART_TransmitStr("Initializing the Kline", DEBUGING_USART);
+		  UART_TransmitNewLine(DEBUGING_USART);
 		  HDS_KLine_init();
+
 	  }
 	  else
 	  {
 		  switch(usr_req)
 		  {
 		  case '1':
+			  UART_TransmitStr("requesting status gear table", DEBUGING_USART);
+			  UART_TransmitNewLine(DEBUGING_USART);
 			  HDS_KLine_request(HDS_REQUEST_STATUS_GEAR_TABLE, HDS_REQUEST_STATUS_GEAR_CHECKSUM);
+			  HDS_KLine_recieve();
 			  break;
 		  case '2':
+			  UART_TransmitStr("requesting sensor data table", DEBUGING_USART);
+			  UART_TransmitNewLine(DEBUGING_USART);
 			  HDS_KLine_request(HDS_REQUEST_SENSOR_DATA_TABLE, HDS_REQUEST_SENSOR_DATA_CHECKSUM);
+			  HDS_KLine_recieve();
+			  break;
+		  default:
 			  break;
 		  }
 
-		  HDS_KLine_recieve();
-
+		  usr_req = '0';
 	  }
 
 	  LL_mDelay(200);
